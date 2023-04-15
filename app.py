@@ -107,5 +107,5 @@ with s_Col3:
     st.markdown("### NULL VALUES")
     st.write(null_values)
     
-    
+st.sidebar.divider()  
 st.sidebar.info("Made with ❤ by the AfroLogicInsect")
