@@ -9,13 +9,8 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 import pyarrow
 import plotly.express as px
-import plotly.offline as py
-import plotly.figure_factory as ff
-import plotly.graph_objs as go
 
 ### Placeholder Data
 df = pd.read_csv("./dta/sample_data.csv")
