@@ -106,3 +106,6 @@ with s_Col2:
 with s_Col3:
     st.markdown("### NULL VALUES")
     st.write(null_values)
+    
+    
+st.sidebar.info("Made with ❤ by the AfroLogicInsect")
