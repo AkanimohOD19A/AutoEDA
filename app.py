@@ -1,135 +1,114 @@
-import base64
-import fastparquet
+## TODO
+# Basic Distribution EDA_Page
+# Numerical EDA_Page
+# Categorical EDA_Page
+# Correlation_Matrix EDA_Page
+# ChatGPT Advisory for ML-Commitment
+
+### Libraries come here
 import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pyarrow
+import plotly.express as px
+
+### Placeholder Data
+df = pd.read_csv("./dta/sample_data.csv")
+
+### Page components come here
+#### > Handles
+st.sidebar.title("Page Handles")
+
+uploaded_file = st.sidebar.file_uploader("Choose a File {.csv, .parquet}", type=["csv", "parquet"])
+
+### Read Uploaded data
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        elif uploaded_file.name.endswith(".parquet"):
+            df = pd.read_parquet(uploaded_file)
+        else:
+            st.error("Provide an acceptable file extension")
+    except UnicodeDecodeError:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file, encoding="ISO-8859-1", header=None, delim_whitespace=True)
 
 
-def manage_uploads(u_file):
-    # # To read file as bytes:
-    # bytes_data = u_file.getvalue()
-    # st.write(bytes_data)
-    #
-    # # To convert to a string based IO:
-    # stringio = StringIO(u_file.getvalue().decode("utf-8"))
-    # st.write(stringio)
-    #
-    # # To read file as string:
-    # string_data = stringio.read()
-    # st.write(string_data)
 
-    # Can be used wherever a "file-like" object is accepted:
-    dataframe = pd.read_csv(u_file)
-    return dataframe
+### Functions come here
+numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+numeric_df = df.select_dtypes(include=numerics)
+numeric_columns = numeric_df.columns.tolist()
+category_df = df.drop(columns=numeric_columns)
+category_columns = category_df.columns.tolist()
 
+### Basic Analytics
+shape = df.shape
+null_values = sum(df.isnull().sum())
 
-def download_parquet(df):
-    csv = df.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()  # some strings <-> bytes conversions necessary here
-    href = f'<a href="data:file/parquet;base64,{b64}" download="file.parquet">Download parquet file</a>'
-    return href
+#### > Exploration Page
+st.header("Exploratory Data Analysis")
+st.markdown("Simple Data Visualization/Exploration Tool for quickly Probing, Visualizing and Analyzing Data Sets")
 
-
-## Reference Column Names
-def common_member(ref_df, tgt_df):
-    ref_columns = set(ref_df.columns.to_list())
-    tgt_columns = set(tgt_df.columns.to_list())
-    if ref_columns & tgt_columns:
-        return list(ref_columns & tgt_columns)
-    else:
-        return ("No common elements")
-
-
-def display_data_table(data):
-    data_as_csv = data.to_csv(index=False).encode("utf-8")
-
-    # st.sidebar.divider()
-    # st.sidebar.write("Some Description | The inner join operation is used to find the "
-    #                  "intersection between two tables | and [hyperlink](./) to Learn Inner Joi-")
-    # st.write("DataFrame")
-    return data_as_csv
+st.divider()
+st.markdown('#### Univariate Analysis')
+# st.markdown("<h5 style='text-align: center;'>Univariate Analysis</h5>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
-
 with col1:
-    st.subheader("Reference File Upload")
-    uploaded_reference_file = col1.file_uploader("Choose your Reference file", key=0)
-    if uploaded_reference_file is not None:
-        ref_df = manage_uploads(uploaded_reference_file)
-        st.dataframe(ref_df.head().T, use_container_width=True)
-
+    num_option = st.selectbox("Select Distribution of a Numerical Variable", numeric_columns)
+    fig = px.histogram(df, x=num_option, opacity=0.75)
+    fig.update_layout(bargap=0.2, uniformtext_minsize=12, uniformtext_mode='hide')
+    st.plotly_chart(fig, use_container_width=True)
 with col2:
-    st.subheader("Target File Upload")
-    uploaded_target_file = col2.file_uploader("Choose your Target file", key=1)
-    if uploaded_target_file is not None:
-        tgt_df = manage_uploads(uploaded_target_file)
-        st.dataframe(tgt_df.head().T)
+    cat_option = st.selectbox("Select Distribution of a Categorical Variable", category_columns)
+    fig = px.histogram(df, x=cat_option)
+    fig.update_layout(bargap=0.2)
+    st.plotly_chart(fig, use_container_width=True)
+st.divider()
 
-st.sidebar.write("Options would appear once your Files are uploaded")
-if uploaded_reference_file is not None and uploaded_target_file is not None:
-    # Using "with" notation
-    with st.sidebar:
-        add_radio = st.radio(
-            "Choose a shipping method",
-            ("Inner-Join", "Left-Join", "Right-Join")
-            # , "Full-Join"
-        )
-    st.info(f"You selected **{add_radio}**")
-    # col3, col4 = st.columns(2)
-    #
-    # with col1:
-    if add_radio == "Inner-Join" or "Right-Join":
-        cc_id = st.selectbox("Select the common Identifier:", common_member(ref_df, tgt_df))
-        inJ_df = ref_df.merge(tgt_df, how="inner", on=str(cc_id))
-        rtJ_df = ref_df.merge(tgt_df, how="right", on=str(cc_id))
-        data = pd.DataFrame()
-        if cc_id is not None or cc_id != "No common elements":
-            if add_radio == "Inner-Join":
-                data = inJ_df.copy()
-                if st.sidebar.button("Preview Data"):
-                    st.dataframe(data.head().T)
-            elif add_radio == "Right-Join":
-                data = rtJ_df.copy()
-                if st.sidebar.button("Preview Data"):
-                    st.dataframe(data.head().T)
-        else:
-            st.warning("Choose a common Identifier to continue")
-    if add_radio == "Left-Join":
-        lfJ_df = ref_df.merge(tgt_df, how='left')
-        data = lfJ_df.copy()
-        if lfJ_df.shape[0] == 0:
-            st.error("No Common Data! Retry with another common identifier")
-        else:
-            if st.sidebar.button("Preview Data"):
-                st.dataframe(data.head().T)
-    if data.shape[0] == 0:
-        st.error("No Common Data! Retry with another common identifier")
-    st.markdown("")
-    st.markdown("")
-    col5, col6, col7 = st.columns(3)
-    with col5:
-        st.write(f'The Wrangled Data: {data.shape}')
-        # st.write(data.shape())
-    with col6:
-        data_as_csv = data.to_csv()
-        st.download_button(
-            label="Download data as CSV",
-            data=data_as_csv,
-            file_name=str(add_radio) + '_data.csv',
-            mime='text/csv',
-        )
-    with col7:
-        st.write("PlaceHolder for Parquet File Downloader")
-# col5, col6 = st.sidebar.columns(2)
-#                     with col5:
-#                         st.download_button(
-#                             label="Download data as CSV",
-#                             data=myfile_as_csv,
-#                             file_name='innerJoined_data.csv',
-#                             mime='text/csv',
-#                         )
-#                     with col6:
-#                         # ### Code to save df as parquet
-#                         parquet_file = inJ_df.to_parquet('myfile.parquet', engine='fastparquet')
-#                         # download_parquet(inJ_df)
-#                         st.write('Parquet Download Placeholder')
+st.markdown('#### Bivariate Analysis')
+st.write("Distribution of the Selected Columns")
+col3, col4, col5 = st.columns(3)
+with col3:
+    num_option1 = st.selectbox("Select Numerical Variable", numeric_columns)
+with col4:
+    numeric_columns_x = numeric_df.drop(columns=num_option1).columns.tolist()
+    num_option2 = st.selectbox("Select another Numerical Variable", numeric_columns_x)
+with col5:
+    cat_option1 = st.selectbox("Select a Categorical Identifier", category_columns)
+fig = px.histogram(df, x=num_option2, y=num_option1, color=cat_option1,
+                   marginal="box",  # or violin, rug
+                   hover_data=df.columns)
+st.plotly_chart(fig, use_container_width=True)
+st.divider()
+
+st.subheader("Data Page")
+st.warning("Check the **Editable Dataframes** option on the side widget to enable you change your values")
+
+### Option to edit data
+Editable_Status = {0: "No", 1: "Yes"}
+if st.sidebar.checkbox("Would you like to edit your data"):
+    edit_df = st.experimental_data_editor(df, use_container_width=True)
+    # edit_df.to_csv('./dta/edit_data.csv')
+    # df = pd.read_csv("./dta/edit_data.csv")
+    Editable_Status = Editable_Status[1]
+else:
+    st.dataframe(df, use_container_width=True)
+    Editable_Status = Editable_Status[0]
+
+st.sidebar.divider()
+
+s_Col1, s_Col2, s_Col3 = st.sidebar.columns(3)
+with s_Col1:
+    st.markdown("### DATA SHAPE")
+    st.write(shape)
+
+with s_Col2:
+    st.markdown("### EDITABLE STATUS")
+    st.write(Editable_Status)
+
+with s_Col3:
+    st.markdown("### NULL VALUES")
+    st.write(null_values)
