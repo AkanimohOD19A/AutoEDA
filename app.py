@@ -23,12 +23,18 @@ uploaded_file = st.sidebar.file_uploader("Choose a File {.csv, .parquet}", type=
 
 ### Read Uploaded data
 if uploaded_file is not None:
-    if uploaded_file.name.endswith(".csv"):
-        df = pd.read_csv(uploaded_file)
-    elif uploaded_file.name.endswith(".parquet"):
-        df = pd.read_parquet(uploaded_file)
-    else:
-        st.error("Provide an acceptable file extension")
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        elif uploaded_file.name.endswith(".parquet"):
+            df = pd.read_parquet(uploaded_file)
+        else:
+            st.error("Provide an acceptable file extension")
+    except UnicodeDecodeError:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file, encoding="ISO-8859-1", header=None, delim_whitespace=True)
+
+
 
 ### Functions come here
 numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
